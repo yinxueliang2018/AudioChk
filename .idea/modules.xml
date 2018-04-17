@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/cadRecorder.iml" filepath="$PROJECT_DIR$/cadRecorder.iml" />
+      <module fileurl="file://$PROJECT_DIR$/CadRecorder.iml" filepath="$PROJECT_DIR$/CadRecorder.iml" />
     </modules>
   </component>
 </project>
