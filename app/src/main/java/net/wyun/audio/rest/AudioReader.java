@@ -26,6 +26,7 @@ public class AudioReader {
 
     public Map<String, String> readAudio(Audio audio) throws IOException {
         AudioPayload payload = new AudioPayload("audio", audio.getEncodedAudio());
+
         return readAudio(payload);
     }
 

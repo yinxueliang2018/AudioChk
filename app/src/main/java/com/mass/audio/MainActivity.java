@@ -7,10 +7,14 @@ import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Base64;
+import android.os.Handler;
+import android.os.Message;
 
 import com.mass.audio.library.Recorder;
 import com.mass.audio.library.model.OnByteBufferDataChangeListener;
@@ -23,9 +27,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Calendar;
 
+
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
+
+import net.wyun.audio.domain.Audio;
+import net.wyun.audio.domain.AudioPayload;
+import net.wyun.audio.rest.AudioReader;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements OnByteBufferDataChangeListener {
 
@@ -35,16 +45,19 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
     private static final int MAX_SIZE = 8*1024*60;
     private int sampleSize = MAX_SIZE;
     private int sampleCount = 0;
-    private TextView text_msg;
+    private TextView text_msg,chkResult;
     private TextView text_time;
-    private EditText text_name;
+    private EditText text_name,text_ip;
     private GraphView graph;
     LineGraphSeries<DataPoint> seriesLine;
+
+    public String ipAddr = "192.168.1.105";
 
     private String sData;
     private String sResult = "采样分析：";
 
     private ImageButton mImageButton;
+    private Button checkButton,ipSetButton;
 
     private Recorder mRecorder;
     private FileOutputStream mStream;
@@ -61,16 +74,22 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
         setContentView(R.layout.activity_main);
         text_msg = (TextView) findViewById(R.id.text_msg);
         text_time = (TextView)findViewById(R.id.text_time);
+        chkResult = (TextView)findViewById(R.id.chkResult);
         text_name = (EditText)findViewById(R.id.name);
+        text_ip = (EditText)findViewById(R.id.ipText);
         graph = (GraphView) findViewById(R.id.graph1);
         sampleSize = MAX_SIZE;
         text_msg.setText("初始状态：");
         mImageButton = (ImageButton) findViewById(R.id.action_image);
+        checkButton = (Button)findViewById(R.id.check);
+        ipSetButton = (Button)findViewById(R.id.ipBtn);
         seriesLine = new LineGraphSeries<DataPoint>(new DataPoint[64]);
         graph.getViewport().setYAxisBoundsManual(true);
         graph.getViewport().setMinY(-32768);
         graph.getViewport().setMaxY(32767);
 
+        checkButtonClick();
+        ipSetButtonClick();
         mImageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -86,6 +105,7 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
                     ((ImageButton) v).setImageResource(R.drawable.record);
                     mRecorder.stop();
                     text_msg.setText("停止采样：");
+                    chkResult.setText("采样文件："+currentFile.substring(25));
                     try {
                         anlayseSampleData(currentFile);
                     }catch (IOException e){
@@ -125,6 +145,18 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
         //yunXing();
 
     }
+    Handler handler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            Bundle data = msg.getData();
+            String val = data.getString("result");
+            //Log.i("mylog", "请求结果为-->" + val);
+            // TODO
+            // UI界面的更新等相关操作
+            chkResult.setText(val);
+        }
+    };
     public void yunXing() {
         new Thread() {
             public void run() {
@@ -151,7 +183,93 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
             }
         }.start();  //开启一个线
     }
+    Runnable networkTask = new Runnable() {
 
+        @Override
+        public void run() {
+            // TODO
+            // 在这里进行 http request.网络请求相关操作
+            String s = "分析结果：";
+            byte[] audio = s.getBytes();
+            Message msg = new Message();
+            Bundle data = new Bundle();
+            FileInputStream inStream = null;
+            int size = 1024;
+            try {
+                inStream = new FileInputStream(currentFile);
+            }catch (FileNotFoundException e) {
+                e.printStackTrace();
+            };
+            try {
+                size = inStream.available();
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+
+            byte[] audio1 = new byte[size];
+            try {
+                inStream.read(audio1);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            System.out.print(s);
+            System.out.print(String.valueOf(size));
+
+
+            AudioPayload payload = new AudioPayload(currentFile, Base64.encodeToString(audio1, Base64.DEFAULT));
+            //AudioPayload payload = new AudioPayload("audio", b64encode(audio1));
+            String ipA = "http://"+ipAddr+":8080/";
+            AudioReader ar = new AudioReader(ipA);
+
+            Map<String, String> map = null;
+            try {
+                map = ar.readAudio(payload);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            System.out.print(map);
+            System.out.println("通过Map.keySet遍历key和value：");
+            if(map != null) {
+                for (String key : map.keySet()) {
+                    System.out.println("key= "+ key + " and value= " + map.get(key));
+                    s = s + key + map.get(key);
+                }
+            }else{
+                s = s + "文件传输失败...";
+            }
+            data.putString("result", s);
+            msg.setData(data);
+            handler.sendMessage(msg);
+        }
+    };
+    public void checkButtonClick(){
+        checkButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean recording = mRecorder.isRecording();
+                if(recording){
+                    chkResult.setText("采样进行中，结束后再进行分析...");
+                }
+                if(currentFile==""){
+                    chkResult.setText("还未进行采样，请采样后再进行分析...");
+                    recording = true;
+                }
+                if(!recording) {
+                    new Thread(networkTask).start();
+                    chkResult.setText("准备上传采样文件...");
+                }
+            }
+        });
+    }
+    public void ipSetButtonClick(){
+        ipSetButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ipAddr = text_ip.getText().toString();
+            }
+        });
+    }
     public void displaySampleData() {
         new Thread() {
             public void run() {
@@ -232,7 +350,7 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
     private void anlayseSampleData(String fname) throws IOException {
         LineGraphSeries<DataPoint> series = new LineGraphSeries<DataPoint>();
         graph.removeAllSeries();
-        sResult = "采样分析：";
+        sResult = "采样提示：";
 
         if (inStream != null){
             inStream.close();
@@ -249,7 +367,7 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
         int size = inStream.available();
         int nSeg = size/4/1024;
         if (nSeg < 20){
-            text_msg.setText("采样分析：采样时间过短(小于10秒)！");
+            text_msg.setText("采样提示：采样时间过短(小于10秒)！");
             return;
         }
         nSeg = 20;
@@ -338,7 +456,7 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
         currentFile = "";
         try {
             Calendar now = Calendar.getInstance();
-            String filename = DIR_PATH+now.get(Calendar.YEAR);
+            String filename = "" + now.get(Calendar.YEAR);
             if((now.get(Calendar.MONTH)+1)<10) {
                 filename = filename + "0"+(now.get(Calendar.MONTH) + 1);
             }else{
@@ -365,7 +483,11 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
                 filename = filename +now.get(Calendar.SECOND);
             }
             filename = filename + "."+text_name.getText().toString()+".pcm";//text_name.getText().toString()
+            chkResult.setText("采样文件："+filename);
+
+            filename = DIR_PATH + filename;
             currentFile = currentFile + filename;
+
             mStream = new FileOutputStream(new File(filename));
             return true;
         } catch (FileNotFoundException e) {
@@ -489,4 +611,41 @@ public class MainActivity extends AppCompatActivity implements OnByteBufferDataC
         seriesLine.resetData(values);
         graph.addSeries(seriesLine);
     }
+
+    public String b64encode(byte[] d)
+    {
+        if (d == null) return null;
+        byte data[] = new byte[d.length+2];
+        System.arraycopy(d, 0, data, 0, d.length);
+        byte dest[] = new byte[(data.length/3)*4];
+
+        // 3-byte to 4-byte conversion
+        for (int sidx = 0, didx=0; sidx < d.length; sidx += 3, didx += 4)
+        {
+            dest[didx]   = (byte) ((data[sidx] >>> 2) & 077);
+            dest[didx+1] = (byte) ((data[sidx+1] >>> 4) & 017 |
+                    (data[sidx] << 4) & 077);
+            dest[didx+2] = (byte) ((data[sidx+2] >>> 6) & 003 |
+                    (data[sidx+1] << 2) & 077);
+            dest[didx+3] = (byte) (data[sidx+2] & 077);
+        }
+
+        // 0-63 to ascii printable conversion
+        for (int idx = 0; idx <dest.length; idx++)
+        {
+            if (dest[idx] < 26)     dest[idx] = (byte)(dest[idx] + 'A');
+            else if (dest[idx] < 52)  dest[idx] = (byte)(dest[idx] + 'a' - 26);
+            else if (dest[idx] < 62)  dest[idx] = (byte)(dest[idx] + '0' - 52);
+            else if (dest[idx] < 63)  dest[idx] = (byte)'+';
+            else            dest[idx] = (byte)'/';
+        }
+
+        // add padding
+        for (int idx = dest.length-1; idx > (d.length*4)/3; idx--)
+        {
+            dest[idx] = (byte)'=';
+        }
+        return new String(dest);
+    }
+
 }

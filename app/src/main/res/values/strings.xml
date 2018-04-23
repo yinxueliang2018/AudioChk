@@ -1,7 +1,7 @@
 <resources>
-    <string name="app_name">CardioKitV1.0</string>
+    <string name="app_name">CardioKitV1.1</string>
     <string name="name">00</string>
     <string name="name_label">采样人编号：(文件目录：~心音文件~，后缀：.pcm)</string>
-    <string name="text_msg">获取到数据：</string>
+    <string name="text_msg">采样提示：</string>
 
 </resources>
