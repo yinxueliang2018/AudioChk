@@ -8,11 +8,10 @@ apply plugin: 'com.jfrog.bintray'
 version = "0.1.1"
 
 android {
-    compileSdkVersion 22
-
+    compileSdkVersion 26
     defaultConfig {
-        minSdkVersion 15
-        targetSdkVersion 25
+        minSdkVersion 23
+        targetSdkVersion 23
         versionCode 1
         versionName "1.0"
 
@@ -25,7 +24,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
+    buildToolsVersion '26.0.2'
+    productFlavors {
+    }
 }
 
 dependencies {

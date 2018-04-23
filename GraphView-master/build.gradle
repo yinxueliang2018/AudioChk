@@ -1,6 +1,7 @@
 buildscript {
     repositories {
         mavenCentral()
+        google()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:2.3.0'
@@ -14,11 +15,11 @@ task wrapper(type: Wrapper) {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 22
-    buildToolsVersion '23.0.2'
+    compileSdkVersion 26
+    buildToolsVersion '26.0.2'
     defaultConfig {
-        minSdkVersion 9
-        targetSdkVersion 22
+        minSdkVersion 23
+        targetSdkVersion 23
         versionCode 1
         versionName "1.0"
     }
@@ -35,7 +36,7 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:support-v4:22.1.1'
+    compile 'com.android.support:support-v4:22.2.1'
 }
 
 
